@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Post,
+  Res,
+} from "@nestjs/common";
+import { NestResponse } from "src/core/http/nest-response";
+import { NestResponseBuilder } from "src/core/http/nest-response-builder";
 import { User } from "./user.entity";
 import { UserService } from "./user.service";
 
@@ -18,11 +29,28 @@ export class UserController {
 
   @Get(":nickname")
   public findByNickname(@Param("nickname") nickname: string): User {
-    return this.userService.findByNickname(nickname);
+    const foundUser = this.userService.findByNickname(nickname);
+
+    if (!foundUser) {
+      throw new NotFoundException({
+        statusCode: HttpStatus.NOT_FOUND,
+        message: "User not found!",
+      });
+    }
+    return foundUser;
   }
 
   @Post()
-  public create(@Body() user: User): User {
-    return this.userService.create(user);
+  public create(@Body() user: User): NestResponse {
+    const createdUser = this.userService.create(user);
+
+    /* We're creating a response using the "Location" header to satisfy the REST standard. */
+    return new NestResponseBuilder()
+      .withStatus(HttpStatus.CREATED)
+      .withHeader({
+        Location: `/users/${createdUser.nickname}`,
+      })
+      .withBody(createdUser)
+      .build();
   }
 }
